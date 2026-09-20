@@ -27,10 +27,15 @@ export function useRundownById(rundownId: string | null | undefined) {
   const queryClient = useQueryClient();
   const id = rundownId ?? '';
   const isBootstrap = id === '';
+  const didBootstrap = useRef(isBootstrap);
 
   const { data, status, isError, refetch, isFetching } = useQuery<Rundown>({
     queryKey: getRundownCacheKey(id),
     queryFn: ({ signal }) => (isBootstrap ? fetchCurrentRundown({ signal }) : fetchRundown(id, { signal })),
+    // Bootstrap seeds the ID-keyed cache. Keep that one handoff fresh so switching
+    // keys does not repeat the same request; explicitly selected rundowns retain
+    // the default refetch behaviour.
+    staleTime: didBootstrap.current ? queryRefetchIntervalSlow : 0,
     refetchInterval: queryRefetchIntervalSlow,
   });
 
@@ -42,7 +47,6 @@ export function useRundownById(rundownId: string | null | undefined) {
 
   // Once we have the ID, drop the temporary current cache.
   // Only the reader which bootstrapped may do so, others are still relying on it.
-  const didBootstrap = useRef(isBootstrap);
   useEffect(() => {
     if (isBootstrap || !didBootstrap.current) return;
     didBootstrap.current = false;
@@ -53,12 +57,11 @@ export function useRundownById(rundownId: string | null | undefined) {
 }
 
 /**
- * Builds a flat rundown from the order and entries fields
+ * Builds a flat rundown from the order and entries fields.
+ * An empty rundown has an empty order, so a placeholder flattens to nothing
+ * without having to read the revision, which an optimistic update also owns.
  */
-export function flattenRundown(rundown: Rundown): OntimeEntry[] {
-  if (rundown.revision === -1) {
-    return [];
-  }
+export function flattenRundown(rundown: Pick<Rundown, 'entries' | 'flatOrder'>): OntimeEntry[] {
   return rundown.flatOrder
     .map((id) => rundown.entries[id])
     .filter((entry): entry is OntimeEntry => entry !== undefined);
