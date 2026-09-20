@@ -9,6 +9,15 @@ type EntryCopyStore = {
   setEntryCopyId: (eventId: MaybeString, rundownId: MaybeString, mode?: 'copy' | 'cut') => void;
 };
 
+export function isEntryCopyTarget(
+  entryCopyId: MaybeString,
+  entryCopyRundownId: MaybeString,
+  entryId: string,
+  rundownId: string,
+) {
+  return entryCopyId === entryId && entryCopyRundownId === rundownId;
+}
+
 /**
  * The clipboard is shared across rundowns so entries can be moved between them
  */

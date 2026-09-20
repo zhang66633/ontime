@@ -6,22 +6,23 @@ import { createRoot, Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getRundownQueryKey } from '../../api/constants';
-import { putEditEntry } from '../../api/rundown';
+import { putEditEntry, requestApplyDelay } from '../../api/rundown';
 import { useScopedEntryActions } from '../useEntryAction';
 
 vi.mock('../../api/rundown', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../api/rundown')>()),
   putEditEntry: vi.fn(),
+  requestApplyDelay: vi.fn(),
 }));
 
 function makeEvent(revision: number, title: string): OntimeEvent {
   return { id: 'event', type: SupportedEntry.Event, revision, title } as OntimeEvent;
 }
 
-function makeRundown(event: OntimeEvent): Rundown {
+function makeRundown(event: OntimeEvent, id = 'rundown'): Rundown {
   return {
-    id: 'rundown',
-    title: 'Rundown',
+    id,
+    title: id,
     entries: { [event.id]: event },
     order: [event.id],
     flatOrder: [event.id],
@@ -41,8 +42,14 @@ async function flush() {
   await act(async () => Promise.resolve());
 }
 
-function EntryActionsReader({ onActions }: { onActions: (actions: ReturnType<typeof useScopedEntryActions>) => void }) {
-  const actions = useScopedEntryActions('rundown');
+function EntryActionsReader({
+  rundownId = 'rundown',
+  onActions,
+}: {
+  rundownId?: string;
+  onActions: (actions: ReturnType<typeof useScopedEntryActions>) => void;
+}) {
+  const actions = useScopedEntryActions(rundownId);
 
   useEffect(() => {
     onActions(actions);
@@ -112,6 +119,53 @@ describe('useScopedEntryActions()', () => {
     expect(queryClient.getQueryData<Rundown>(getRundownQueryKey('rundown'))?.entries.event).toMatchObject({
       title: 'second edit',
       revision: 3,
+    });
+  });
+
+  it('writes a delayed mutation response to the rundown that initiated it', async () => {
+    const response = deferred<{ data: Rundown }>();
+    vi.mocked(requestApplyDelay).mockReturnValueOnce(response.promise as ReturnType<typeof requestApplyDelay>);
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(getRundownQueryKey('rundown-a'), makeRundown(makeEvent(1, 'A'), 'rundown-a'));
+    queryClient.setQueryData(getRundownQueryKey('rundown-b'), makeRundown(makeEvent(1, 'B'), 'rundown-b'));
+    const container = document.createElement('div');
+    root = createRoot(container);
+    let actions: ReturnType<typeof useScopedEntryActions> | undefined;
+    const onActions = (value: ReturnType<typeof useScopedEntryActions>) => (actions = value);
+
+    await act(async () => {
+      root?.render(
+        createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          createElement(EntryActionsReader, { rundownId: 'rundown-a', onActions }),
+        ),
+      );
+    });
+
+    await act(async () => {
+      void actions?.applyDelay('delay');
+      await Promise.resolve();
+      root?.render(
+        createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          createElement(EntryActionsReader, { rundownId: 'rundown-b', onActions }),
+        ),
+      );
+    });
+
+    response.resolve({ data: makeRundown(makeEvent(2, 'A updated'), 'rundown-a') });
+    await flush();
+
+    expect(queryClient.getQueryData<Rundown>(getRundownQueryKey('rundown-a'))?.entries.event).toMatchObject({
+      title: 'A updated',
+      revision: 2,
+    });
+    expect(queryClient.getQueryData<Rundown>(getRundownQueryKey('rundown-b'))?.entries.event).toMatchObject({
+      title: 'B',
+      revision: 1,
     });
   });
 });

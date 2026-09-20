@@ -7,8 +7,9 @@ import { IoReorderTwo, IoTrash } from 'react-icons/io5';
 import Input from '../../../common/components/input/input/Input';
 import useReactiveTextInput from '../../../common/components/input/text-input/useReactiveTextInput';
 import { useEntryActionsContext } from '../../../common/context/EntryActionsContext';
+import { useRundownScope } from '../../../common/context/RundownScopeContext';
 import { useContextMenu } from '../../../common/hooks/useContextMenu';
-import { useEntryCopy } from '../../../common/stores/entryCopyStore';
+import { isEntryCopyTarget, useEntryCopy } from '../../../common/stores/entryCopyStore';
 import { deviceAlt } from '../../../common/utils/deviceUtils';
 import { cx, getAccessibleColour } from '../../../common/utils/styleUtils';
 import { useEventSelection } from '../useEventSelection';
@@ -32,6 +33,8 @@ export default function RundownMilestone({ colour, cue, entryId, hasCursor, titl
   const selectedEvents = useEventSelection((state) => state.selectedEvents);
   const selectSingleEntry = useEventSelection((state) => state.setSingleEntrySelection);
   const entryCopyId = useEntryCopy((state) => state.entryCopyId);
+  const entryCopyRundownId = useEntryCopy((state) => state.entryCopyRundownId);
+  const { rundownId } = useRundownScope();
 
   const [onContextMenu] = useContextMenu<HTMLDivElement>(() => [
     {
@@ -89,7 +92,7 @@ export default function RundownMilestone({ colour, cue, entryId, hasCursor, titl
       className={cx([
         style.milestone,
         hasCursor ? style.hasCursor : null,
-        entryCopyId === entryId ? style.copyTarget : null,
+        isEntryCopyTarget(entryCopyId, entryCopyRundownId, entryId, rundownId) ? style.copyTarget : null,
       ])}
       ref={setNodeRef}
       onClick={handleFocusClick}
