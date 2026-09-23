@@ -9,9 +9,11 @@ import { langEs } from './languages/es';
 import { langFr } from './languages/fr';
 import { langIt } from './languages/it';
 import { langPt } from './languages/pt';
+import { langZh } from './languages/zh';
 
 const translationsList = {
   en: langEn,
+  zh: langZh,
   es: langEs,
   fr: langFr,
   it: langIt,

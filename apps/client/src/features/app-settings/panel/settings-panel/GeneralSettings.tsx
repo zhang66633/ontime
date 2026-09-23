@@ -148,6 +148,7 @@ export default function GeneralSettings() {
                   defaultValue='en'
                   options={[
                     { value: 'en', label: 'English' },
+                    { value: 'zh', label: '中文' },
                     { value: 'fr', label: 'French' },
                     { value: 'de', label: 'German' },
                     { value: 'it', label: 'Italian' },
