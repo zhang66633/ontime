@@ -75,6 +75,10 @@
 
 验证脚本：`D:\_Projects\verify-ontime-zh.mjs`（`BASE` 环境变量可切换 3000/4001）。
 
+### 「所有模式都是英文」排查（2026-09-23 21:53）
+
+用户截图反馈全英文。实锤过程：`Get-Process ontime` + `Get-CimInstance Win32_Process` 发现运行中的是**官方安装包**（`D:\_Downloads\Installers\ontime\ontime.exe`，用户自己下载对比用的），不是 fork 构建——官方版无 `zh` 语言包，`language=zh` 静默回落英文（见坑 9）。关掉官方版、启动 `dist\win-unpacked\ontime.exe` 后实测四个视图全部中文：timer`当前时间` / countdown`选择要跟踪的活动` / backstage`计划开始` / timeline`进行中、即将开始`。教训：语言 code 跨版本不兼容是静默回落，查「没生效」先查跑的是哪个二进制。
+
 ### 安装版实测（路径 C，2026-09-23）
 
 1. `node apps\electron\node_modules\electron\install.js` 直连 github.com 下载 electron v38.2.1 二进制（125MB，成功——先前 ECONNRESET 是暂时性网络问题）

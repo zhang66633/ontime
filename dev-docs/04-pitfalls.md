@@ -74,6 +74,14 @@ PATCH /git/refs/heads/master {sha}    → 更新分支
 
 **诊断手法**：给 bundle 副本注入 `console.log` 打印 `srcDir.clientDir`（锚点要选完整语句之后，插在 `var` 声明列表中间会 SyntaxError），用 `spawnSync` 捕获 stdout 再按行过滤。
 
+## 坑 9：跑错二进制——官方版不认识 zh，静默回落英文
+
+**现象**：用户反馈「所有模式都是英文」，但服务端 `language=zh`、视图实测中文正常。
+
+**根因**：用户运行的是自己下载的**官方安装包**（`D:\_Downloads\Installers\ontime\ontime.exe`），不是 fork 构建。官方版没有 `zh.ts`，`translationsList` 里没有 `zh` → `getLocalizedString` 走回落分支返回英文，且设置里连「中文」选项都没有。DB 里虽是 `zh`，官方版完全不认识。
+
+**教训**：① 验证「中文没生效」先确认跑的是哪个二进制（`Get-CimInstance Win32_Process` 看 CommandLine）；② `language` 是自由字符串，跨版本不兼容时**静默回落**，不报错——这类问题最难自查；③ fork 的可用产物：`apps/electron/dist/win-unpacked/ontime.exe`（直接跑）或 `dist/ontime-win64.exe`（安装包）。
+
 ## 参考：本机可用的验证命令（DSH shim 坏死后）
 
 ```powershell
