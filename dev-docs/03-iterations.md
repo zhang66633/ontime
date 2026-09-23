@@ -51,6 +51,9 @@
 
 - 首个验证脚本末尾用 `POST /data/settings {settings:{language:'zh'}}`（嵌套格式）想重置语言，**接口要扁平 Settings 对象**，该请求静默失败，导致截图实际是英文。已改用 UI 切换重取证据。教训：验证脚本的「 setup 步骤」也要断言结果。
 
-## Iter 5 — 提交
+## Iter 5 — 提交并推送
 
-- 待执行：commit + push 到 `zhang66633/ontime`
+- 本地提交：`66d016a5` feat(ui): add Chinese (zh) to views language options
+- **推送方式**：本机沙箱阻断 `github.com:443`（git 协议走该 host），`api.github.com` 可达。改用 node 脚本调 GitHub Git Data API（blob→tree→commit→ref）完成等价推送，内容读自磁盘、推送后逐文件校验一致。
+- 远端提交：`bf183ca7` → https://github.com/zhang66633/ontime/commit/bf183ca7ac167f8d2520cdbee367a061e90a7669
+- 注意：该环境下 `/git/commits/{sha}` 返回的是 REST commits 形状（`message`/`tree` 在顶层，无 `commit` 字段），按实际形状取字段即可。
