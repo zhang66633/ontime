@@ -23,3 +23,28 @@ pnpm --filter ontime-ui lint            # oxlint
 pnpm --filter ontime-ui typecheck       # tsc
 pnpm format:check                       # oxfmt
 ```
+
+## 如何体验中文版（三种方式，均已实测）
+
+**官方下载的 Windows 安装版不含中文**（上游 release，无 fork 改动）。要体验：
+
+```bash
+# 方式 A：dev 模式（改代码时用）
+& "$env:APPDATA\npm\pnpm.cmd" dev --filter=ontime-server   # 终端 1，:4001
+& "$env:APPDATA\npm\pnpm.cmd" dev --filter=ontime-ui       # 终端 2，:3000
+# 浏览器打开 http://localhost:3000/editor → 设置 → Views language → 中文
+
+# 方式 B：生产构建独立运行（最接近安装版形态，无需 electron）
+& "$env:APPDATA\npm\pnpm.cmd" build
+robocopy apps\client\build apps\server\client /E           # 必须 robocopy，见坑 7
+node D:\_Projects\run-ontime-standalone.cjs                # :4001，打开 /editor
+
+# 方式 C：打 Windows 安装包（需可连 github.com 下载 electron 二进制）
+& "$env:APPDATA\npm\pnpm.cmd" build
+& "$env:APPDATA\npm\pnpm.cmd" dist-win --filter=ontime-electron
+# 产物 apps/electron/dist/ontime-win64.exe
+```
+
+端到端验证脚本（`BASE` 可切 3000/4001）：`node D:\_Projects\verify-ontime-zh.mjs`
+
+**适配边界**：只有公开视图（timer/countdown/backstage/studio/timeline/info）跟随语言；编辑器界面、studio 硬编码 `ON AIR` 等不翻译（上游设计）。

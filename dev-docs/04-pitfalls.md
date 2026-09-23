@@ -56,6 +56,24 @@ PATCH /git/refs/heads/master {sha}    → 更新分支
 
 令牌用 `gh auth token | Set-Content token.txt -NoNewline` 落盘（PowerShell 管道不受沙帘限制；node 的 execSync 捕获子进程输出会 EPERM），**用完立即删除**。推送后逐文件 `GET /contents/{path}?ref=master`（Accept: github.raw）与本地对比校验。
 
+## 坑 7：PowerShell Copy-Item 拍平目录结构
+
+**现象**：`Copy-Item -Path apps\client\build\* -Destination apps\server\client\ -Recurse -Force` 后，909 个文件全部平铺在目标根目录，`assets/` 子目录消失（900 个本应在子目录里的文件到了根上）。后果：`/assets/index-XXX.js` 全部 404 → 落 SPA 兜底返回 `text/html` → 浏览器报 "Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of text/html" → 白页。
+
+**原因**：PS 5.1 的 `Copy-Item -Path <通配符> -Recurse` 已知行为——对通配符展开的集合递归时丢层级。
+
+**解决**：用 `robocopy <src> <dst> /E`（保留结构）。排查教训：静态 404 先 `Get-ChildItem -Directory` 确认子目录在不在，再怀疑中间件。
+
+## 坑 8：bundle 生产模式 clientDir 会多剥一层目录
+
+**现象**：`node apps/server/dist/index.cjs` 起服务后所有静态路径 400 "Unhandled request"，但 dev 模式（tsx 跑源码）static 完全正常。
+
+**原因**：`setup/index.ts` 用 `globalThis.__dirname = fileURLToPath(import.meta.url)` 模拟 ESM 的 `import.meta.url`，但 esbuild 打成 CJS 后，模块局部 `__dirname`（dist 目录本身）遮蔽了 global，`dirname(__dirname)` 于是多剥一层：生产模式 clientDir = `apps/server/client/` 而非 `apps/server/dist/client/`。
+
+**关键认知**：这不是 bug 而是承重墙——electron-builder 把 client 放到 `extraResources/client/`、server bundle 放到 `extraResources/server/`，`dirname(server 目录)/client` 正好落在 client 上。独立运行（不打包）时必须手动把 client/build 复制到 `apps/server/client/`（用 robocopy，见坑 7）。
+
+**诊断手法**：给 bundle 副本注入 `console.log` 打印 `srcDir.clientDir`（锚点要选完整语句之后，插在 `var` 声明列表中间会 SyntaxError），用 `spawnSync` 捕获 stdout 再按行过滤。
+
 ## 参考：本机可用的验证命令（DSH shim 坏死后）
 
 ```powershell

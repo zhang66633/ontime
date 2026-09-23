@@ -57,3 +57,20 @@
 - **推送方式**：本机沙箱阻断 `github.com:443`（git 协议走该 host），`api.github.com` 可达。改用 node 脚本调 GitHub Git Data API（blob→tree→commit→ref）完成等价推送，内容读自磁盘、推送后逐文件校验一致。
 - 远端提交：`bf183ca7` → https://github.com/zhang66633/ontime/commit/bf183ca7ac167f8d2520cdbee367a061e90a7669
 - 注意：该环境下 `/git/commits/{sha}` 返回的是 REST commits 形状（`message`/`tree` 在顶层，无 `commit` 字段），按实际形状取字段即可。
+
+## Iter 6 — 「下载 Windows 版能直接体验中文吗」调研（2026-09-23）
+
+**结论：不能。** 官方 release 是上游代码，fork 无发布物。为给出可体验路径，实测了三种方式：
+
+| 路径 | 命令 | 实测结果 |
+| --- | --- | --- |
+| A. dev 模式 | `pnpm dev --filter=ontime-server` + `--filter=ontime-ui` → localhost:3000 | ✅ 早前 6/6 通过 |
+| B. 生产构建独立运行 | `pnpm build` → client/build 复制到 `apps/server/client/` → `node run-ontime-standalone.cjs` → localhost:4001 | ✅ **7/7 通过**（含 API 重置、下拉、落库、timer/countdown/studio 中文、切回可逆） |
+| C. Windows 安装包 | `pnpm build` + `pnpm dist-win`（electron-builder → `apps/electron/dist/ontime-win64.exe`） | ⚠️ 本机未跑通：electron 二进制下载被网络重置（安装时已跳过），需可连 github.com 的环境重试 |
+
+### 生产构建独立运行的 two 个关键发现
+
+1. **bundle 的 clientDir 布局怪癖**：`setup/index.ts` 里 `globalThis.__dirname = fileURLToPath(import.meta.url)` 在 esbuild CJS 打包后被模块局部 `__dirname`（目录）遮蔽，导致 `dirname(__dirname)` 多剥一层——生产模式 clientDir = `apps/server/client/`（不是 `dist/client/`）。这恰好匹配 electron-builder 布局（client 在 `extraResources/client/`、server 在 `extraResources/server/`），所以该「怪癖」是打包布局的承重墙，不是 bug。
+2. **PowerShell `Copy-Item -Path src\* -Recurse` 会拍平目录结构**（900 个 assets 文件全平铺到根目录，`assets/` 子目录消失），导致 `/assets/*.js` 全部落 SPA 兜底返回 text/html。必须用 `robocopy src dst /E`。这是本次排查绕了最远的一圈，直接原因只是一个复制命令。
+
+验证脚本：`D:\_Projects\verify-ontime-zh.mjs`（`BASE` 环境变量可切换 3000/4001）。
