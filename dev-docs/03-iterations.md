@@ -66,7 +66,7 @@
 | --- | --- | --- |
 | A. dev 模式 | `pnpm dev --filter=ontime-server` + `--filter=ontime-ui` → localhost:3000 | ✅ 早前 6/6 通过 |
 | B. 生产构建独立运行 | `pnpm build` → client/build 复制到 `apps/server/client/` → `node run-ontime-standalone.cjs` → localhost:4001 | ✅ **7/7 通过**（含 API 重置、下拉、落库、timer/countdown/studio 中文、切回可逆） |
-| C. Windows 安装包 | `pnpm build` + `pnpm dist-win`（electron-builder → `apps/electron/dist/ontime-win64.exe`） | ⚠️ 本机未跑通：electron 二进制下载被网络重置（安装时已跳过），需可连 github.com 的环境重试 |
+| C. Windows 安装包 | `pnpm build` + `pnpm dist-win`（electron-builder → `apps/electron/dist/ontime-win64.exe`） | ✅ **已跑通**（2026-09-23，见下方「安装版实测」） |
 
 ### 生产构建独立运行的 two 个关键发现
 
@@ -74,3 +74,10 @@
 2. **PowerShell `Copy-Item -Path src\* -Recurse` 会拍平目录结构**（900 个 assets 文件全平铺到根目录，`assets/` 子目录消失），导致 `/assets/*.js` 全部落 SPA 兜底返回 text/html。必须用 `robocopy src dst /E`。这是本次排查绕了最远的一圈，直接原因只是一个复制命令。
 
 验证脚本：`D:\_Projects\verify-ontime-zh.mjs`（`BASE` 环境变量可切换 3000/4001）。
+
+### 安装版实测（路径 C，2026-09-23）
+
+1. `node apps\electron\node_modules\electron\install.js` 直连 github.com 下载 electron v38.2.1 二进制（125MB，成功——先前 ECONNRESET 是暂时性网络问题）
+2. `pnpm dist-win --filter=ontime-electron` → electron-builder 26.15.3，nsis 目标，**4/4 任务成功**
+3. 产物：`apps/electron/dist/ontime-win64.exe`（92.7MB）+ `win-unpacked/`（extraResources 布局正确：client 与 server 就位）
+4. 静默安装冒烟：`ontime-win64.exe /S /D=<临时目录>` → 启动 `ontime.exe` → :4001 health OK、`language: zh`、bundle 内检出「当前时间」、**E2E 7/7 通过** → 结束进程 → 静默卸载 → 目录与端口清理干净

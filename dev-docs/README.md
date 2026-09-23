@@ -39,10 +39,11 @@ pnpm format:check                       # oxfmt
 robocopy apps\client\build apps\server\client /E           # 必须 robocopy，见坑 7
 node D:\_Projects\run-ontime-standalone.cjs                # :4001，打开 /editor
 
-# 方式 C：打 Windows 安装包（需可连 github.com 下载 electron 二进制）
+# 方式 C：打 Windows 安装包（已实测跑通）
 & "$env:APPDATA\npm\pnpm.cmd" build
+# 若 electron 二进制缺失：node apps\electron\node_modules\electron\install.js（直连 github.com）
 & "$env:APPDATA\npm\pnpm.cmd" dist-win --filter=ontime-electron
-# 产物 apps/electron/dist/ontime-win64.exe
+# 产物 apps/electron/dist/ontime-win64.exe（约 93MB）
 ```
 
 端到端验证脚本（`BASE` 可切 3000/4001）：`node D:\_Projects\verify-ontime-zh.mjs`
